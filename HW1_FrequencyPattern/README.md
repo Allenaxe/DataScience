@@ -280,4 +280,4 @@ set<PATTERN, item_comparator> fptree_growth(const FPTREE& fptree)
 > [!NOTE]  
 > **Smart pointer (C++ 11 stardard):**  
 > * **shared_ptr (Strong reference pointer):** Allowed mutiple shared_ptr points to the same resoure, and this action will increase value of the counter in the shared_ptr. All shared_ptr is released, the resource is released.  
-> * **weak_ptr (Weak reference pointer):** It supports shred_ptr. It can only access the resource and know whether it survives, but it cannnot control the lifetime of resource. 
+> * **weak_ptr (Weak reference pointer):** It supports shared_ptr. It can only access the resource and know whether it survives, but it cannnot control the lifetime of resource. 
