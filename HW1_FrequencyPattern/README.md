@@ -158,7 +158,7 @@ Mining frequent itemset through header table from bottom to the top. To every it
 ##### Utility
 
 Check whether a path is a single path which is each nodes in this path contain one child excluding leaf node.
----
+
 ```c++
 bool single_path(const shared_ptr<FPNODE>& fpnode)
 {
@@ -172,7 +172,7 @@ bool single_path(const FPTREE& fptree)
   return fptree.empty() || single_path( fptree.root );
 }
 ```
-
+---
 1. For the FPTREE with single path, iteratively dig into it and add item to the set to become a new pattern, and the insert it into single_path to become a part of answer.
 
 ```c++
