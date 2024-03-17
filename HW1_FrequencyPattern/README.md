@@ -151,6 +151,131 @@ for ( const TRANSACTION& transaction : transactions ) {
   }
 }
 ```
+#### FP-Growth
+
+Mining frequent itemset through header table from bottom to the top. To every items in header table corresponding to FPTREE, find its conditional pattern base. Conditional pattern base means the subtree which the mining node is the leaf node. Set the counters of every nodes to be the value of leaf node and delete the nodes which its value is lower the minimum support. Based on this conditional pattern base, mine the frequent itemset recursively.
+
+##### Utility
+
+Check whether a path is a single path which is each nodes in this path contain one child excluding leaf node.
+
+```c++
+bool single_path(const shared_ptr<FPNODE>& fpnode)
+{
+  if ( fpnode->children.size() == 0 ) { return true; }
+  if ( fpnode->children.size() > 1 ) { return false; }
+  return single_path( fpnode->children.front() );
+}
+
+bool single_path(const FPTREE& fptree)
+{
+  return fptree.empty() || single_path( fptree.root );
+}
+```
+
+1. For the FPTREE with single path, iteratively dig into it and add item to the set to become a new pattern, and the insert it into single_path to become a part of answer.
+
+```c++
+set<PATTERN, item_comparator> fptree_growth(const FPTREE& fptree)
+{
+  if ( fptree.empty() ) { return {}; }
+
+  if ( single_path( fptree ) ) {
+
+    set<PATTERN, item_comparator> single_path;
+
+    auto current_fpnode = fptree.root->children.front();
+    while ( current_fpnode ) {
+      const ITEM& current_fpnode_item = current_fpnode->item;
+      const uint64_t current_fpnode_frequency = current_fpnode->frequency;
+
+      PATTERN new_pattern{ { current_fpnode_item }, current_fpnode_frequency };
+      single_path.insert( new_pattern );
+
+      for ( const PATTERN& pattern : single_path ) {
+        PATTERN new_pattern{ pattern };
+
+        new_pattern.first.insert( current_fpnode_item );
+        new_pattern.second = current_fpnode_frequency;
+
+        single_path.insert( new_pattern );
+      }
+
+      if ( current_fpnode->children.size() == 1 ) { current_fpnode = current_fpnode->children.front(); }
+      else { current_fpnode = nullptr; }
+    }
+
+    return single_path;
+  }
+  else {
+
+    set<PATTERN, item_comparator> multi_path;
+
+    for ( const auto& pair : fptree.header_table ) {
+      const ITEM& current_item = pair.first;
+
+      vector<PREFIXPATH> conditional_pattern_base;
+
+      auto starting_fpnode = pair.second;
+      while ( starting_fpnode ) {
+        const uint64_t starting_fpnode_frequency = starting_fpnode->frequency;
+
+        auto current_path = starting_fpnode->parent.lock();
+        if ( current_path->parent.lock() ) {
+          PREFIXPATH prefix_path{ {}, starting_fpnode_frequency };
+
+          while ( current_path->parent.lock() ) {
+              prefix_path.first.push_back( current_path->item );
+
+              current_path = current_path->parent.lock();
+          }
+
+          conditional_pattern_base.push_back( prefix_path );
+        }
+
+        starting_fpnode = starting_fpnode->node_link;
+      }
+      vector<TRANSACTION> conditional_fptree_transactions;
+      for ( const PREFIXPATH& prefix_path : conditional_pattern_base ) {
+        const vector<ITEM>& prefix_path_items = prefix_path.first;
+        const uint64_t prefix_path_items_frequency = prefix_path.second;
+
+        TRANSACTION transaction = prefix_path_items;
+
+        for ( int i = 0; i < prefix_path_items_frequency; ++i ) {
+          conditional_fptree_transactions.push_back( transaction );
+        }
+      }
+
+      const FPTREE conditional_fptree( conditional_fptree_transactions, fptree.minimum_support );
+      set<PATTERN, item_comparator> conditional_patterns = fptree_growth( conditional_fptree );
+
+      set<PATTERN, item_comparator> current_item_patterns;
+
+      uint64_t current_item_frequency = 0;
+      auto fpnode = pair.second;
+      while ( fpnode ) {
+        current_item_frequency += fpnode->frequency;
+        fpnode = fpnode->node_link;
+      }
+      PATTERN pattern{ { current_item }, current_item_frequency };
+      current_item_patterns.insert( pattern );
+
+      for ( const PATTERN& pattern : conditional_patterns ) {
+        PATTERN new_pattern{ pattern };
+        new_pattern.first.insert( current_item );
+        new_pattern.second = pattern.second;
+
+        current_item_patterns.insert( { new_pattern } );
+      }
+
+      multi_path.insert( current_item_patterns.cbegin(), current_item_patterns.cend() );
+    }
+
+    return multi_path;
+  }
+}
+```
 
 > [!NOTE]  
 > **Smart pointer (C++ 11 stardard):**  
